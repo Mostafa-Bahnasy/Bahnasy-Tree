@@ -35,9 +35,10 @@ To route an index $i$ (1-indexed) inside this node:
 - Find the smallest $j$ such that $p_j \ge i$.
 - Go to that child (and convert $i$ into the child-local index by subtracting $p_{j-1}$).
 
-Because $p_j$ is monotone, this is done using binary search (“lower bound on prefix sums”), which is a standard competitive programming technique.
+Because $p_j$ is monotone, this is done using binary search (“lower bound on prefix sums”).
 
-**Figure 1 (place here)**
+**Figure 1 (routing by prefix sums)**
+
 
 ---
 
@@ -52,15 +53,15 @@ For a node representing $n$ elements:
   - If $S > T$, use $S = 2$
   - Distribute the $n$ elements among those $S$ children (almost evenly), then recurse.
 
-This rule guarantees that during the initial build, every internal node has at most $T$ children.
+This guarantees that during the initial build, every internal node has at most $T$ children.
 
 ---
 
 ## 4) Find / traverse complexity
 
-Define:
-- $D$: the depth (number of levels).
-- At each level, routing uses binary search on at most $T$ children, so it costs $O(\log_2 T)$.
+The time to access an index is determined by:
+- $D$: how many levels we go down (depth).
+- The work inside a level: binary search among at most $T$ children, which costs $O(\log_2 T)$.
 
 Therefore:
 
@@ -68,7 +69,9 @@ $$
 \mathrm{find} = O(D \cdot \log_2 T)
 $$
 
-For a “fully expanded” $T$-ary tree shape, depth is about:
+The relation between $D$ and $T$ is opposite: larger $T$ means wider nodes and usually fewer levels, smaller $T$ means narrower nodes and usually more levels.
+
+In a “fully expanded” $T$-ary shape, depth is about:
 
 $$
 D \approx \log_T N
@@ -80,36 +83,30 @@ $$
 \mathrm{find} = O(\log_T N \cdot \log_2 T)
 $$
 
-Using the change-of-base rule $\log_T N = \frac{\log N}{\log T}$, the product $\log_T N \cdot \log_2 T$ equals $\log_2 N$.
-
-This means point navigation behaves like $O(\log N)$ in the ideal balanced case.
-
 ---
 
 ## 5) Insert, local overflow, and local split
 
 Insertion happens at leaf level. After inserting a new element, the “leaf-parent” (the node whose children are leaves) increases its number of children.
 
-If the leaf-parent does not exceed the overflow trigger (in the reference implementation it is `> 4T`), then insertion only needs the routing work plus the local insertion into that node’s ordered list of leaf children.
+As long as the leaf-parent still has at most $T$ children, nothing structural is required.
 
-If it exceeds the trigger, a **local split** is performed:
+When the leaf-parent exceeds $T$ children, a **local split** is performed:
 - A new intermediate layer is created between the leaf-parent and its leaves.
 - The old leaves are grouped into $S$ buckets (where $S$ is computed by the same SPF rule capped by $T$).
 - This restores a bounded fanout and keeps future routing efficient.
 
-**Figure 2 (place here)**
+**Figure 2 (local split)**
+
+
 
 ### Complexity of one local split
 
-When a leaf-parent overflows, it has about $T+1$ to $4T+1$ leaf-children (depending on the trigger used). The local split creates roughly $\mathrm{SPF}(T+1)$ intermediate nodes and reconnects all those leaves.
-
-So a local split costs:
+A local split creates about $\mathrm{SPF}(T+1)$ intermediate nodes and reconnects about $T+1$ leaves, so ignoring the SPF term, the time is:
 
 $$
 O(T)
 $$
-
-(up to a constant factor like 4).
 
 ### Insert complexity
 
@@ -129,7 +126,7 @@ $$
 
 Deletion also consists of:
 - Routing to the target: $O(\log_T N \cdot \log_2 T)$
-- Removing it from the leaf-parent’s ordered child list (which is bounded by the same overflow trigger), so $O(T)$
+- Removing it from the leaf-parent’s ordered child list (bounded by the same width idea), so $O(T)$
 
 So the worst-case delete is:
 
@@ -160,29 +157,26 @@ $$
 Y \approx \frac{T^2}{2}
 $$
 
+When the tree becomes invalid, it is rebuilt.
+
 ---
 
-## 8) Rebuild time (using the PDF argument)
-
-When the tree becomes invalid (depth too large / too many local splits), the entire tree is rebuilt.
+## 8) Rebuild time
 
 A rebuild does:
 1) Collect leaves into an array of size $N$.
-2) Reconstruct the tree from scratch.
+2) Reconstruct the tree from scratch using the global split rule.
 
 The rebuild time is proportional to the number of nodes created.
 
 Leaf level: $N$ nodes.  
-Previous level: between $N/2$ and $N/T$.  
-Previous level: between $N/4$ and $N/T^2$.  
-
-Continuing upward, the maximum total node count is bounded by the geometric series:
+Previous levels shrink geometrically, so the maximum total node count is bounded by:
 
 $$
 N + \frac{N}{2} + \frac{N}{4} + \frac{N}{8} + \dots
 $$
 
-So rebuild cost is:
+Therefore rebuild cost is:
 
 $$
 O(N)
@@ -190,7 +184,7 @@ $$
 
 ---
 
-## 9) Total cost of rebuilds across $Q$ operations (PDF-style)
+## 9) Total cost of rebuilds across $Q$ operations (worst-style bound)
 
 In the worst case, rebuild happens every $\Theta(T^2)$ insertions concentrated in one place.
 
@@ -206,13 +200,13 @@ $$
 O\!\left(\frac{NQ}{T^2}\right)
 $$
 
-The remaining operation costs depend on the per-operation cost (routing + local work). In the worst case, insertion can be treated as $O(T)$ due to local overflow work, so the operation part is:
+For operation costs in the same worst-style view, insertion can be treated as $O(T)$ due to local split work, so the operation part is:
 
 $$
 O(QT)
 $$
 
-Thus a PDF-style total bound is:
+Thus a total bound is:
 
 $$
 O\!\left(\frac{NQ}{T^2} + QT\right)
