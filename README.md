@@ -40,6 +40,7 @@ Because $p_j$ is monotone, this is done using binary search (“lower bound on p
 **Figure 1 (routing by prefix sums)**
 
 
+
 ---
 
 ## 3) Building the tree (global split using SPF)
@@ -57,11 +58,11 @@ This guarantees that during the initial build, every internal node has at most $
 
 ---
 
-## 4) Find / traverse complexity
+## 4) Find / traverse complexity (and the simplification)
 
-The time to access an index is determined by:
-- $D$: how many levels we go down (depth).
-- The work inside a level: binary search among at most $T$ children, which costs $O(\log_2 T)$.
+Define:
+- $D$: the depth (number of levels).
+- At each level, routing uses binary search on at most $T$ children, so it costs $O(\log_2 T)$.
 
 Therefore:
 
@@ -69,18 +70,34 @@ $$
 \mathrm{find} = O(D \cdot \log_2 T)
 $$
 
-The relation between $D$ and $T$ is opposite: larger $T$ means wider nodes and usually fewer levels, smaller $T$ means narrower nodes and usually more levels.
-
-In a “fully expanded” $T$-ary shape, depth is about:
+In a “fully expanded” $T$-ary tree shape, depth is about:
 
 $$
 D \approx \log_T N
 $$
 
-So:
+So a direct expression is:
 
 $$
 \mathrm{find} = O(\log_T N \cdot \log_2 T)
+$$
+
+Now simplify using change-of-base:
+
+$$
+\log_T N = \frac{\log_2 N}{\log_2 T}
+$$
+
+Multiplying both sides by $\log_2 T$ gives:
+
+$$
+\log_T N \cdot \log_2 T = \log_2 N
+$$
+
+So the final form used later is:
+
+$$
+\mathrm{find} = O(\log_2 N)
 $$
 
 ---
@@ -111,13 +128,13 @@ $$
 ### Insert complexity
 
 Insert cost is:
-- Routing: $O(\log_T N \cdot \log_2 T)$
+- Routing: $O(\log_2 N)$
 - Plus possible local overflow handling: $O(T)$
 
 So the worst-case insert is:
 
 $$
-O(\log_T N \cdot \log_2 T + T)
+O(\log_2 N + T)
 $$
 
 ---
@@ -125,13 +142,13 @@ $$
 ## 6) Delete complexity
 
 Deletion also consists of:
-- Routing to the target: $O(\log_T N \cdot \log_2 T)$
+- Routing to the target: $O(\log_2 N)$
 - Removing it from the leaf-parent’s ordered child list (bounded by the same width idea), so $O(T)$
 
 So the worst-case delete is:
 
 $$
-O(\log_T N \cdot \log_2 T + T)
+O(\log_2 N + T)
 $$
 
 ---
