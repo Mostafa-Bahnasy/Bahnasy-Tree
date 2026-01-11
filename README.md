@@ -40,6 +40,7 @@ Because $p_j$ is monotone, this is done using binary search (“lower bound on p
 **Figure 1 (routing by prefix sums)**
 
 
+![Figure 1: Prefix sum routing](docs/images/fig1.png)
 
 ---
 
@@ -114,6 +115,8 @@ When the leaf-parent exceeds $T$ children, a **local split** is performed:
 - This restores a bounded fanout and keeps future routing efficient.
 
 **Figure 2 (local split)**
+
+![Figure 2: Local split process](docs/images/fig2.png)
 
 
 
@@ -283,4 +286,4 @@ Minimal structure-only implementation (split / split_local / find / insert / del
 - [general_structure.cpp](https://github.com/Mostafa-Bahnasy/Bahnasy-Tree/blob/main/src/Bahnasy%20Tree%20src/Generic/general_structure.cpp)
 
 Full implementation (find/query/update/insert/delete + rebuild):  
-- [non_generic_version.cpp](https://github.com/Mostafa-Bahnasy/Bahnasy-Tree/blob/main/src/Bahnasy%20Tree%20src/competitive%20programming/non_generic_version.cpp)
+- [non_generic_version.cpp](https://github.com/Mostafa-Bahnasy/Bahnasy-Tree/blob/main/src/Bahnasy%20Tree%20src/competitive%20programming/non_generic_version.cpp)   
