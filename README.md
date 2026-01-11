@@ -283,4 +283,4 @@ Minimal structure-only implementation (split / split_local / find / insert / del
 - [general_structure.cpp](https://github.com/Mostafa-Bahnasy/Bahnasy-Tree/blob/main/src/Bahnasy%20Tree%20src/Generic/general_structure.cpp)
 
 Full implementation (find/query/update/insert/delete + rebuild):  
-- [non_generic_version.cpp](https://github.com/Mostafa-Bahnasy/Bahnasy-Tree/blob/main/src/Bahnasy%20Tree%20src/competitive%20programming/non_gen
+- [non_generic_version.cpp](https://github.com/Mostafa-Bahnasy/Bahnasy-Tree/blob/main/src/Bahnasy%20Tree%20src/competitive%20programming/non_generic_version.cpp)
