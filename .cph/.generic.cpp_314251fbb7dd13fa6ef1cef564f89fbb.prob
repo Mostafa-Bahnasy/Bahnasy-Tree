@@ -1,1 +1,0 @@
-{"name":"Local: generic","url":"d:\\VS code Folders\\Dozi datastructure\\Bahnasy-Tree\\generic.cpp","tests":[{"id":1767434131536,"input":"2 4\n1 2\n2 1 2\n4 2 10\n5 2\n2 1 2","output":"3\n3"}],"interactive":false,"memoryLimit":1024,"timeLimit":3000,"srcPath":"d:\\VS code Folders\\Dozi datastructure\\Bahnasy-Tree\\generic.cpp","group":"local","local":true}
