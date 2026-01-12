@@ -4,11 +4,11 @@ using namespace std;
 mt19937 rng(chrono::steady_clock::now().time_since_epoch().count());
 
 struct Node {
-    long long value;      // Element value
-    long long sum;        // Sum of subtree
-    long long lazy;       // Lazy propagation for range add
-    int priority;         // Random priority for treap property
-    int size;             // Size of subtree
+    long long value;
+    long long sum;
+    long long lazy;
+    int priority;
+    int size;
     Node *left, *right;
     
     Node(long long val) : value(val), sum(val), lazy(0), 
@@ -36,19 +36,23 @@ private:
     void pushLazy(Node* node) {
         if(!node || node->lazy == 0) return;
         
-        // Apply lazy to current node
+        // Apply lazy to node's value
         node->value += node->lazy;
-        node->sum += node->lazy * (long long)node->size;
         
         // Propagate to children
         if(node->left) {
             node->left->lazy += node->lazy;
+            node->left->sum += node->lazy * (long long)node->left->size;
         }
         if(node->right) {
             node->right->lazy += node->lazy;
+            node->right->sum += node->lazy * (long long)node->right->size;
         }
         
         node->lazy = 0;
+        
+        // Recalculate sum from children
+        updateNode(node);
     }
     
     void split(Node* node, int pos, Node*& left, Node*& right) {
@@ -98,7 +102,6 @@ public:
         }
     }
     
-    // Insert value at position pos (1-indexed)
     void insert(int pos, long long value) {
         Node* newNode = new Node(value);
         Node *left, *right;
@@ -106,16 +109,14 @@ public:
         root = merge(merge(left, newNode), right);
     }
     
-    // Delete element at position pos (1-indexed)
     void remove(int pos) {
         Node *left, *mid, *right;
         split(root, pos - 1, left, mid);
         split(mid, 1, mid, right);
-        delete mid; // Free memory
+        delete mid;
         root = merge(left, right);
     }
     
-    // Point update: set arr[pos] = value (1-indexed)
     void update(int pos, long long value) {
         Node *left, *mid, *right;
         split(root, pos - 1, left, mid);
@@ -131,19 +132,18 @@ public:
         root = merge(merge(left, mid), right);
     }
     
-    // Range query: sum of [l, r] (1-indexed)
     long long query(int l, int r) {
         Node *left, *mid, *right;
         split(root, l - 1, left, mid);
         split(mid, r - l + 1, mid, right);
         
+        pushLazy(mid);
         long long result = getSum(mid);
         
         root = merge(merge(left, mid), right);
         return result;
     }
     
-    // Range update: add delta to all elements in [l, r] (1-indexed)
     void rangeUpdate(int l, int r, long long delta) {
         Node *left, *mid, *right;
         split(root, l - 1, left, mid);
@@ -151,8 +151,7 @@ public:
         
         if(mid) {
             mid->lazy += delta;
-            pushLazy(mid);
-            updateNode(mid);
+            mid->sum += delta * (long long)mid->size;
         }
         
         root = merge(merge(left, mid), right);
@@ -160,21 +159,6 @@ public:
     
     int size() {
         return getSize(root);
-    }
-    
-    // Debug: print array
-    void print(Node* node) {
-        if(!node) return;
-        pushLazy(node);
-        print(node->left);
-        cerr << node->value << " ";
-        print(node->right);
-    }
-    
-    void printArray() {
-        cerr << "Array: ";
-        print(root);
-        cerr << "(size=" << size() << ")" << endl;
     }
 };
 
@@ -198,35 +182,30 @@ int main(){
         cin >> op;
         
         if(op == 1){
-            // Point update
             int idx;
             long long val;
             cin >> idx >> val;
             treap.update(idx, val);
         }
         else if(op == 2){
-            // Range query
             int l, r;
             cin >> l >> r;
             long long result = treap.query(l, r);
             cout << result << "\n";
         }
         else if(op == 3){
-            // Range update
             int l, r;
             long long delta;
             cin >> l >> r >> delta;
             treap.rangeUpdate(l, r, delta);
         }
         else if(op == 4){
-            // Insert
             int idx;
             long long val;
             cin >> idx >> val;
             treap.insert(idx, val);
         }
         else if(op == 5){
-            // Delete
             int idx;
             cin >> idx;
             treap.remove(idx);

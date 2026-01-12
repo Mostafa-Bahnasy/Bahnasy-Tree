@@ -1,0 +1,106 @@
+test_rel,status,time_a_sec,time_b_sec,rc_a,rc_b
+Benchmarks\tests\All operations\Samples\01,MATCH,0.064120,0.065734,0,0
+Benchmarks\tests\All operations\Samples\02,MATCH,0.014597,0.009188,0,0
+Benchmarks\tests\All operations\Samples\03,MATCH,0.010538,0.009829,0,0
+Benchmarks\tests\All operations\Samples\04,MATCH,0.010696,0.009764,0,0
+Benchmarks\tests\All operations\Samples\05,MATCH,0.011517,0.010936,0,0
+Benchmarks\tests\All operations\Simple Tests\06,MATCH,0.011311,0.010152,0,0
+Benchmarks\tests\All operations\Simple Tests\07,MATCH,0.011517,0.009671,0,0
+Benchmarks\tests\All operations\Simple Tests\08,MATCH,0.014772,0.013250,0,0
+Benchmarks\tests\All operations\Simple Tests\09,MATCH,0.027157,0.031437,0,0
+Benchmarks\tests\All operations\Simple Tests\10,MATCH,0.046068,0.052380,0,0
+Benchmarks\tests\All operations\Simple Tests\11,MATCH,0.147926,0.146236,0,0
+Benchmarks\tests\All operations\Simple Tests\12,MATCH,0.298525,0.315184,0,0
+Benchmarks\tests\All operations\Stress Tests\100,MATCH,0.437611,0.573598,0,0
+Benchmarks\tests\All operations\Stress Tests\101,MATCH,0.479737,0.639806,0,0
+Benchmarks\tests\All operations\Stress Tests\102,MATCH,0.519433,0.671181,0,0
+Benchmarks\tests\All operations\Stress Tests\103,MATCH,0.573436,0.464631,0,0
+Benchmarks\tests\All operations\Stress Tests\104,MATCH,0.169804,0.221203,0,0
+Benchmarks\tests\All operations\Stress Tests\105,MATCH,0.237658,0.313942,0,0
+Benchmarks\tests\All operations\Stress Tests\43,MATCH,0.096296,0.112289,0,0
+Benchmarks\tests\All operations\Stress Tests\44,MATCH,0.242843,0.294473,0,0
+Benchmarks\tests\All operations\Stress Tests\45,MATCH,0.492449,0.670790,0,0
+Benchmarks\tests\All operations\Stress Tests\46,MATCH,0.086294,0.107147,0,0
+Benchmarks\tests\All operations\Stress Tests\47,MATCH,0.224630,0.276681,0,0
+Benchmarks\tests\All operations\Stress Tests\48,MATCH,0.011520,0.008783,0,0
+Benchmarks\tests\All operations\Stress Tests\49,MATCH,0.020812,0.019899,0,0
+Benchmarks\tests\All operations\Stress Tests\50,MATCH,0.010230,0.008905,0,0
+Benchmarks\tests\All operations\Stress Tests\51,MATCH,0.011079,0.009857,0,0
+Benchmarks\tests\All operations\Stress Tests\52,MATCH,0.021085,0.019199,0,0
+Benchmarks\tests\All operations\Stress Tests\53,MATCH,0.010999,0.009165,0,0
+Benchmarks\tests\All operations\Stress Tests\54,MATCH,0.011529,0.009557,0,0
+Benchmarks\tests\All operations\Stress Tests\55,MATCH,0.025060,0.024270,0,0
+Benchmarks\tests\All operations\Stress Tests\56,MATCH,0.070385,0.082423,0,0
+Benchmarks\tests\All operations\Stress Tests\57,MATCH,0.156162,0.196707,0,0
+Benchmarks\tests\All operations\Stress Tests\58,MATCH,0.315266,0.402977,0,0
+Benchmarks\tests\All operations\Stress Tests\59,MATCH,0.078954,0.108245,0,0
+Benchmarks\tests\All operations\Stress Tests\60,MATCH,0.189411,0.313415,0,0
+Benchmarks\tests\All operations\Stress Tests\61,MATCH,0.396992,0.591378,0,0
+Benchmarks\tests\All operations\Stress Tests\62,MATCH,0.064689,0.081989,0,0
+Benchmarks\tests\All operations\Stress Tests\63,MATCH,0.141296,0.208342,0,0
+Benchmarks\tests\All operations\Stress Tests\64,MATCH,0.275803,0.389124,0,0
+Benchmarks\tests\All operations\Stress Tests\65,MATCH,0.075729,0.086327,0,0
+Benchmarks\tests\All operations\Stress Tests\66,MATCH,0.170464,0.213335,0,0
+Benchmarks\tests\All operations\Stress Tests\67,MATCH,0.541955,0.617771,0,0
+Benchmarks\tests\All operations\Stress Tests\68,MATCH,0.227127,0.059929,0,0
+Benchmarks\tests\All operations\Stress Tests\69,MATCH,0.663895,0.121415,0,0
+Benchmarks\tests\All operations\Stress Tests\70,MATCH,0.066093,0.074331,0,0
+Benchmarks\tests\All operations\Stress Tests\71,MATCH,0.154326,0.162138,0,0
+Benchmarks\tests\All operations\Stress Tests\72,MATCH,0.060930,0.059314,0,0
+Benchmarks\tests\All operations\Stress Tests\73,MATCH,0.146463,0.173549,0,0
+Benchmarks\tests\All operations\Stress Tests\74,MATCH,0.118960,0.102391,0,0
+Benchmarks\tests\All operations\Stress Tests\75,MATCH,0.187273,0.246551,0,0
+Benchmarks\tests\All operations\Stress Tests\76,MATCH,0.073490,0.099619,0,0
+Benchmarks\tests\All operations\Stress Tests\77,MATCH,0.173504,0.251737,0,0
+Benchmarks\tests\All operations\Stress Tests\78,MATCH,0.383480,0.561675,0,0
+Benchmarks\tests\All operations\Stress Tests\79,MATCH,0.140984,0.085824,0,0
+Benchmarks\tests\All operations\Stress Tests\80,MATCH,0.207447,0.189491,0,0
+Benchmarks\tests\All operations\Stress Tests\81,MATCH,0.452551,0.415454,0,0
+Benchmarks\tests\All operations\Stress Tests\82,MATCH,0.022960,0.022297,0,0
+Benchmarks\tests\All operations\Stress Tests\83,MATCH,0.036636,0.048155,0,0
+Benchmarks\tests\All operations\Stress Tests\84,MATCH,0.082515,0.103281,0,0
+Benchmarks\tests\All operations\Stress Tests\85,MATCH,0.081269,0.097901,0,0
+Benchmarks\tests\All operations\Stress Tests\86,MATCH,0.249045,0.339823,0,0
+Benchmarks\tests\All operations\Stress Tests\87,MATCH,1.331900,0.228898,0,0
+Benchmarks\tests\All operations\Stress Tests\88,MATCH,0.295578,0.356525,0,0
+Benchmarks\tests\All operations\Stress Tests\89,MATCH,0.359675,0.488253,0,0
+Benchmarks\tests\All operations\Stress Tests\90,MATCH,0.388158,0.571820,0,0
+Benchmarks\tests\All operations\Stress Tests\91,MATCH,0.108843,0.122448,0,0
+Benchmarks\tests\All operations\Stress Tests\92,MATCH,0.060581,0.069736,0,0
+Benchmarks\tests\All operations\Stress Tests\93,MATCH,0.051831,0.051284,0,0
+Benchmarks\tests\All operations\Stress Tests\94,MATCH,0.380849,0.423349,0,0
+Benchmarks\tests\All operations\Stress Tests\95,MATCH,0.502855,0.710353,0,0
+Benchmarks\tests\All operations\Stress Tests\96,MATCH,0.322715,0.418514,0,0
+Benchmarks\tests\All operations\Stress Tests\97,MATCH,0.638097,0.741814,0,0
+Benchmarks\tests\All operations\Stress Tests\98,MATCH,1.506880,0.305900,0,0
+Benchmarks\tests\All operations\Stress Tests\99,MATCH,0.368099,0.425896,0,0
+Benchmarks\tests\All operations\Worst Case Tests\13,MATCH,0.593083,0.734327,0,0
+Benchmarks\tests\All operations\Worst Case Tests\14,MATCH,0.012244,0.010403,0,0
+Benchmarks\tests\All operations\Worst Case Tests\15,MATCH,0.022904,0.015240,0,0
+Benchmarks\tests\All operations\Worst Case Tests\16,MATCH,0.142393,0.040709,0,0
+Benchmarks\tests\All operations\Worst Case Tests\17,MATCH,0.253915,0.087396,0,0
+Benchmarks\tests\All operations\Worst Case Tests\18,MATCH,0.011863,0.009635,0,0
+Benchmarks\tests\All operations\Worst Case Tests\19,MATCH,0.024468,0.014892,0,0
+Benchmarks\tests\All operations\Worst Case Tests\20,MATCH,0.135675,0.042316,0,0
+Benchmarks\tests\All operations\Worst Case Tests\21,MATCH,0.286522,0.082298,0,0
+Benchmarks\tests\All operations\Worst Case Tests\22,MATCH,0.022535,0.021948,0,0
+Benchmarks\tests\All operations\Worst Case Tests\23,MATCH,0.055715,0.057924,0,0
+Benchmarks\tests\All operations\Worst Case Tests\24,MATCH,0.120712,0.120014,0,0
+Benchmarks\tests\All operations\Worst Case Tests\25,MATCH,0.037590,0.040956,0,0
+Benchmarks\tests\All operations\Worst Case Tests\26,MATCH,0.085700,0.103529,0,0
+Benchmarks\tests\All operations\Worst Case Tests\27,MATCH,0.108890,0.119309,0,0
+Benchmarks\tests\All operations\Worst Case Tests\28,MATCH,0.255403,0.304721,0,0
+Benchmarks\tests\All operations\Worst Case Tests\29,MATCH,0.019516,0.025801,0,0
+Benchmarks\tests\All operations\Worst Case Tests\30,MATCH,0.056778,0.056144,0,0
+Benchmarks\tests\All operations\Worst Case Tests\31,MATCH,0.110159,0.103989,0,0
+Benchmarks\tests\All operations\Worst Case Tests\32,MATCH,0.154168,0.221633,0,0
+Benchmarks\tests\All operations\Worst Case Tests\33,MATCH,0.094189,0.119770,0,0
+Benchmarks\tests\All operations\Worst Case Tests\34,MATCH,0.222013,0.327912,0,0
+Benchmarks\tests\All operations\Worst Case Tests\35,MATCH,0.089058,0.104969,0,0
+Benchmarks\tests\All operations\Worst Case Tests\36,MATCH,0.216026,0.267840,0,0
+Benchmarks\tests\All operations\Worst Case Tests\37,MATCH,0.228691,0.062729,0,0
+Benchmarks\tests\All operations\Worst Case Tests\38,MATCH,0.651955,0.124720,0,0
+Benchmarks\tests\All operations\Worst Case Tests\39,MATCH,0.090690,0.111242,0,0
+Benchmarks\tests\All operations\Worst Case Tests\40,MATCH,0.056136,0.064066,0,0
+Benchmarks\tests\All operations\Worst Case Tests\41,MATCH,0.115532,0.093281,0,0
+Benchmarks\tests\All operations\Worst Case Tests\42,MATCH,0.281327,0.198785,0,0

@@ -287,3 +287,74 @@ Minimal structure-only implementation (split / split_local / find / insert / del
 
 Full implementation (find/query/update/insert/delete + rebuild):  
 - [non_generic_version.cpp](https://github.com/Mostafa-Bahnasy/Bahnasy-Tree/blob/main/src/Bahnasy%20Tree%20src/competitive%20programming/non_generic_version.cpp)   
+
+
+---
+
+## Testing & benchmarking
+
+This repo contains multiple C++ solutions (Bahnasy Tree variants + competitors) and multiple test suites under `Benchmarks/tests/`.  
+To avoid WA from input-format mismatch, pick the correct code variant for the chosen test suite.
+
+### Compatibility rules
+
+| Test suite | Allowed Bahnasy Tree files | Allowed competitor files | Important notes |
+|---|---|---|---|
+| `Benchmarks/tests/point update + query` | Any Bahnasy version that matches point-update I/O (including generic versions) | `src/Competitors src/segTree_point_update.cpp`, `src/Competitors src/treap.cpp`, `src/Competitors src/treap_fast.cpp` | If you run a generic Bahnasy version, it must be configured to **Sum** aggregation (not Min/Xor/And/Or). Also verify the `main()` operation order matches this test format (usually: `op=1` point set, `op=2` range query). |
+| `Benchmarks/tests/Range update + query` | Any Bahnasy version **except** `src/Bahnasy Tree src/competitive programming/bahnasy_point_update.cpp` | `src/Competitors src/segTree_range_update.cpp`, `src/Competitors src/treap.cpp`, `src/Competitors src/treap_fast.cpp` | Ensure the code supports **range add** + **range query**, and that `main()` parses the correct operation IDs for this suite. |
+| `Benchmarks/tests/All operations` | All Bahnasy versions **except** the specialized `bahnasy_point_update.cpp` and `bahnasy_range_update.cpp` | Only Treap variants: `src/Competitors src/treap.cpp`, `src/Competitors src/treap_fast.cpp` | This suite mixes update/query/insert/delete/range-add (depending on the generator). The compared programs must implement the **same full API** and the same op numbering in `main()`. |
+
+### Generic versions: force SUM mode
+
+If you are benchmarking a generic Bahnasy file (example: `src/Generic/bahnasy_generic_version.cpp`), make sure the operation is set to **Sum** (not Min).  
+Use a `SumAdd` operation (sum combine + range add lazy) and set `using Op = SumAdd;` before running tests.
+
+---
+## How to run the scripts
+
+The scripts are interactive: they show numbered menus so you can choose:
+- The C++ file(s) to compile/run.
+- The test suite and which test groups to include.
+
+### 1) Stress testing (recommended)
+
+This compares **two implementations against each other** (no `.out` files needed).
+
+**Windows (repo root):**
+```bat
+py tools\run_stress_interactive.py
+```
+
+**Linux/macOS (repo root):**
+
+```bat
+python3 tools/run_stress_interactive.py
+```
+
+**Output:**
+- `reports/stress_<A>_VS_<B>_<timestamp>/results.csv`
+- `reports/stress_<...>/summary.csv`
+- For any `DIFF`, it saves `<test>.A.txt` and `<test>.B.txt` to help debug.
+
+
+### 2) Benchmark vs official outputs
+
+This runs **one implementation** and compares output to the official answer files.
+
+
+**Windows (repo root):**
+```bat
+py tools\run_benchmark_interactive.py
+```
+
+**Linux/macOS (repo root):**
+
+```bat
+python3 tools/run_benchmark_interactive.py
+```
+
+**Notes:**
+
+- This script expects outputs beside inputs (for example `A 40` beside `40`, or `40.out`).
+
+- If a test shows `NO_REF`, it means the script couldn’t locate the expected output file for that input.

@@ -1,0 +1,13 @@
+test_rel,status,time_a_sec,time_b_sec,rc_a,rc_b
+Benchmarks\tests\Range update + query\01,MATCH,0.060563,0.061150,0,0
+Benchmarks\tests\Range update + query\02,MATCH,0.011390,0.011749,0,0
+Benchmarks\tests\Range update + query\03,MATCH,0.012719,0.010935,0,0
+Benchmarks\tests\Range update + query\04,MATCH,0.015219,0.013107,0,0
+Benchmarks\tests\Range update + query\05,MATCH,0.014914,0.012167,0,0
+Benchmarks\tests\Range update + query\06,MATCH,0.014905,0.013486,0,0
+Benchmarks\tests\Range update + query\07,MATCH,0.514890,0.456378,0,0
+Benchmarks\tests\Range update + query\08,MATCH,0.575014,0.444120,0,0
+Benchmarks\tests\Range update + query\09,MATCH,0.519628,0.431970,0,0
+Benchmarks\tests\Range update + query\10,MATCH,0.511432,0.460620,0,0
+Benchmarks\tests\Range update + query\11,MATCH,0.524492,0.463402,0,0
+Benchmarks\tests\Range update + query\12,MATCH,0.517078,0.456159,0,0

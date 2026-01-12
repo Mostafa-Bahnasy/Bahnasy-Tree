@@ -1,212 +1,221 @@
-#include<bits/stdc++.h>
+#include <bits/stdc++.h>
 using namespace std;
-
-mt19937 rng(chrono::steady_clock::now().time_since_epoch().count());
-
-const int MAXN = 500005;
-
+ 
+// Max nodes = initial n + number of inserts (<= q) + small margin
+static const int MAXN = 500000 + 500000 + 50;
+ 
 struct Node {
-    long long value, sum, lazy;
-    int priority, size;
-    Node *left, *right;
-    
-    Node() {}
-    Node(long long val) : value(val), sum(val), lazy(0), 
-                          priority(rng()), size(1), left(nullptr), right(nullptr) {}
+    long long val, sum, lazy;
+    uint32_t pr;
+    int sz;
+    Node *l, *r;
 };
-
-Node pool[MAXN];
-int poolPtr = 0;
-
-Node* newNode(long long val) {
-    pool[poolPtr] = Node(val);
-    return &pool[poolPtr++];
+ 
+static Node pool[MAXN];
+static int poolPtr = 0;
+ 
+// fast RNG: splitmix64
+static uint64_t sm64_state =
+    (uint64_t)chrono::steady_clock::now().time_since_epoch().count();
+static inline uint64_t splitmix64() {
+    uint64_t x = (sm64_state += 0x9e3779b97f4a7c15ULL);
+    x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
+    x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
+    return x ^ (x >> 31);
 }
-
-class ImplicitTreap {
-private:
-    Node* root;
-    
-    inline int getSize(Node* node) {
-        return node ? node->size : 0;
+ 
+static inline Node* newNode(long long v) {
+    Node* t = &pool[poolPtr++];
+    t->val = v;
+    t->sum = v;
+    t->lazy = 0;
+    t->pr = (uint32_t)splitmix64();
+    t->sz = 1;
+    t->l = t->r = nullptr;
+    return t;
+}
+ 
+static inline int getsz(Node* t) { return t ? t->sz : 0; }
+static inline long long getsum(Node* t) { return t ? t->sum : 0; }
+ 
+// apply "add delta to whole subtree t"
+static inline void apply(Node* t, long long delta) {
+    if (!t) return;
+    t->lazy += delta;
+    t->val += delta;
+    t->sum += delta * 1LL * t->sz;
+}
+ 
+// push lazy to children
+static inline void push(Node* t) {
+    if (!t || t->lazy == 0) return;
+    apply(t->l, t->lazy);
+    apply(t->r, t->lazy);
+    t->lazy = 0;
+}
+ 
+// recompute sz/sum from children + own val
+static inline void pull(Node* t) {
+    if (!t) return;
+    t->sz = 1 + getsz(t->l) + getsz(t->r);
+    t->sum = t->val + getsum(t->l) + getsum(t->r);
+}
+ 
+// split by first k elements: (a has k elems, b has rest)
+static void split(Node* t, int k, Node*& a, Node*& b) {
+    if (!t) { a = b = nullptr; return; }
+    push(t);
+    if (getsz(t->l) >= k) {
+        split(t->l, k, a, t->l);
+        b = t;
+        pull(b);
+    } else {
+        split(t->r, k - getsz(t->l) - 1, t->r, b);
+        a = t;
+        pull(a);
     }
-    
-    inline long long getSum(Node* node) {
-        return node ? node->sum : 0;
+}
+ 
+static Node* merge(Node* a, Node* b) {
+    if (!a || !b) return a ? a : b;
+    if (a->pr > b->pr) {
+        push(a);
+        a->r = merge(a->r, b);
+        pull(a);
+        return a;
+    } else {
+        push(b);
+        b->l = merge(a, b->l);
+        pull(b);
+        return b;
     }
-    
-    inline void updateNode(Node* node) {
-        if(!node) return;
-        node->size = 1 + getSize(node->left) + getSize(node->right);
-        node->sum = node->value + getSum(node->left) + getSum(node->right);
-    }
-    
-    inline void pushLazy(Node* node) {
-        if(!node || node->lazy == 0) return;
-        
-        node->value += node->lazy;
-        node->sum += node->lazy * (long long)node->size;
-        
-        if(node->left) node->left->lazy += node->lazy;
-        if(node->right) node->right->lazy += node->lazy;
-        
-        node->lazy = 0;
-    }
-    
-    void split(Node* node, int pos, Node*& left, Node*& right) {
-        if(!node) {
-            left = right = nullptr;
-            return;
+}
+ 
+// O(n) treap build from sequence (implicit keys are positions)
+// Cartesian tree build with priorities as heap keys.
+static Node* build_linear(const vector<long long>& arr) {
+    vector<Node*> st;
+    st.reserve(arr.size());
+    Node* root = nullptr;
+ 
+    for (long long x : arr) {
+        Node* cur = newNode(x);
+        Node* last = nullptr;
+ 
+        while (!st.empty() && st.back()->pr < cur->pr) {
+            last = st.back();
+            st.pop_back();
         }
-        
-        pushLazy(node);
-        int leftSize = getSize(node->left);
-        
-        if(leftSize < pos) {
-            split(node->right, pos - leftSize - 1, node->right, right);
-            left = node;
-            updateNode(left);
-        } else {
-            split(node->left, pos, left, node->left);
-            right = node;
-            updateNode(right);
+        cur->l = last;
+        if (!st.empty()) st.back()->r = cur;
+        st.push_back(cur);
+    }
+    root = st.front();
+ 
+    // postorder iterative pull to compute sz/sum
+    vector<Node*> order;
+    order.reserve(arr.size());
+    vector<Node*> stack2;
+    stack2.push_back(root);
+    while (!stack2.empty()) {
+        Node* t = stack2.back();
+        stack2.pop_back();
+        order.push_back(t);
+        if (t->l) stack2.push_back(t->l);
+        if (t->r) stack2.push_back(t->r);
+    }
+    for (int i = (int)order.size() - 1; i >= 0; --i) pull(order[i]);
+    return root;
+}
+ 
+struct ImplicitTreap {
+    Node* root = nullptr;
+ 
+    void build(const vector<long long>& arr) {
+        root = arr.empty() ? nullptr : build_linear(arr);
+    }
+ 
+    // insert BEFORE position pos (1-indexed, like your original)
+    void insert(int pos, long long v) {
+        Node *a, *b;
+        split(root, pos - 1, a, b);
+        root = merge(merge(a, newNode(v)), b);
+    }
+ 
+    void remove_pos(int pos) {
+        Node *a, *b, *c;
+        split(root, pos - 1, a, b);
+        split(b, 1, b, c);        // b is the removed node
+        root = merge(a, c);
+    }
+ 
+    void point_set(int pos, long long v) {
+        Node *a, *b, *c;
+        split(root, pos - 1, a, b);
+        split(b, 1, b, c);
+        if (b) {
+            push(b);              // must push so children keep old pending lazies
+            b->lazy = 0;
+            b->val = v;
+            pull(b);
         }
+        root = merge(merge(a, b), c);
     }
-    
-    Node* merge(Node* left, Node* right) {
-        if(!left || !right) return left ? left : right;
-        
-        pushLazy(left);
-        pushLazy(right);
-        
-        if(left->priority > right->priority) {
-            left->right = merge(left->right, right);
-            updateNode(left);
-            return left;
-        } else {
-            right->left = merge(left, right->left);
-            updateNode(right);
-            return right;
-        }
+ 
+    long long range_sum(int l, int r) {
+        Node *a, *b, *c;
+        split(root, l - 1, a, b);
+        split(b, r - l + 1, b, c);
+        long long ans = getsum(b); // sum is always correct due to apply()
+        root = merge(merge(a, b), c);
+        return ans;
     }
-    
-public:
-    ImplicitTreap() : root(nullptr) {}
-    
-    void build(vector<long long>& arr) {
-        for(long long val : arr) {
-            Node* node = newNode(val);
-            root = merge(root, node);
-        }
-    }
-    
-    void insert(int pos, long long value) {
-        Node* node = newNode(value);
-        Node *left, *right;
-        split(root, pos - 1, left, right);
-        root = merge(merge(left, node), right);
-    }
-    
-    void remove(int pos) {
-        Node *left, *mid, *right;
-        split(root, pos - 1, left, mid);
-        split(mid, 1, mid, right);
-        root = merge(left, right);
-    }
-    
-    void update(int pos, long long value) {
-        Node *left, *mid, *right;
-        split(root, pos - 1, left, mid);
-        split(mid, 1, mid, right);
-        
-        if(mid) {
-            pushLazy(mid);
-            mid->value = value;
-            mid->sum = value;
-            mid->lazy = 0;
-        }
-        
-        root = merge(merge(left, mid), right);
-    }
-    
-    long long query(int l, int r) {
-        Node *left, *mid, *right;
-        split(root, l - 1, left, mid);
-        split(mid, r - l + 1, mid, right);
-        
-        long long result = getSum(mid);
-        
-        root = merge(merge(left, mid), right);
-        return result;
-    }
-    
-    void rangeUpdate(int l, int r, long long delta) {
-        Node *left, *mid, *right;
-        split(root, l - 1, left, mid);
-        split(mid, r - l + 1, mid, right);
-        
-        if(mid) {
-            mid->lazy += delta;
-            pushLazy(mid);
-            updateNode(mid);
-        }
-        
-        root = merge(merge(left, mid), right);
-    }
-    
-    int size() {
-        return getSize(root);
+ 
+    void range_add(int l, int r, long long d) {
+        Node *a, *b, *c;
+        split(root, l - 1, a, b);
+        split(b, r - l + 1, b, c);
+        apply(b, d);
+        root = merge(merge(a, b), c);
     }
 };
-
-int main(){
+ 
+int main() {
     ios::sync_with_stdio(false);
     cin.tie(nullptr);
-    
+ 
     int n, q;
     cin >> n >> q;
-    
     vector<long long> arr(n);
-    for(int i = 0; i < n; i++){
-        cin >> arr[i];
-    }
-    
-    ImplicitTreap treap;
-    treap.build(arr);
-    
-    while(q--){
+    for (int i = 0; i < n; i++) cin >> arr[i];
+ 
+    ImplicitTreap t;
+    t.build(arr);
+ 
+    while (q--) {
         int op;
         cin >> op;
-        
-        if(op == 1){
-            int idx;
-            long long val;
+        if (op == 1) {
+            int idx; long long val;
             cin >> idx >> val;
-            treap.update(idx, val);
-        }
-        else if(op == 2){
+            t.point_set(idx, val);
+        } else if (op == 2) {
             int l, r;
             cin >> l >> r;
-            cout << treap.query(l, r) << "\n";
-        }
-        else if(op == 3){
-            int l, r;
-            long long delta;
-            cin >> l >> r >> delta;
-            treap.rangeUpdate(l, r, delta);
-        }
-        else if(op == 4){
-            int idx;
-            long long val;
+            cout << t.range_sum(l, r) << "\n";
+        } else if (op == 3) {
+            int l, r; long long d;
+            cin >> l >> r >> d;
+            t.range_add(l, r, d);
+        } else if (op == 4) {
+            int idx; long long val;
             cin >> idx >> val;
-            treap.insert(idx, val);
-        }
-        else if(op == 5){
+            t.insert(idx, val);
+        } else if (op == 5) {
             int idx;
             cin >> idx;
-            treap.remove(idx);
+            t.remove_pos(idx);
         }
     }
-    
     return 0;
 }
