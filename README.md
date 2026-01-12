@@ -40,7 +40,7 @@ Because $p_j$ is monotone, this is done using binary search (“lower bound on p
 **Figure 1 (routing by prefix sums)**
 
 
-![Figure 1: Prefix sum routing](docs/images/fig1.svg)
+![Figure 1: Prefix sum routing](docs/images/fig1.png)
 
 ---
 
