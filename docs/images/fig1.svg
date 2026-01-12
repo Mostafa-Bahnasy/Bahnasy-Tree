@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="420" viewBox="0 0 1100 420">
+  <defs>
+    <style>
+      .box { fill:#ffffff; stroke:#111827; stroke-width:2; }
+      .child { fill:#f3f4f6; stroke:#111827; stroke-width:2; }
+      .txt { font: 16px/1.2 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; fill:#111827; }
+      .small { font: 14px/1.2 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; fill:#111827; }
+      .mono { font: 14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; fill:#111827; }
+      .muted { fill:#374151; }
+      .accent { fill:#2563eb; }
+      .accentStroke { stroke:#2563eb; }
+    </style>
+
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <path d="M0,0 L9,3 L0,6 Z" fill="#111827"/>
+    </marker>
+
+    <marker id="arrowBlue" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <path d="M0,0 L9,3 L0,6 Z" fill="#2563eb"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="30" y="40" class="txt" font-weight="700">Figure 1 — Routing by prefix sums (lower_bound on p)</text>
+
+  <!-- Parent node -->
+  <rect x="60" y="70" width="980" height="120" rx="14" class="box"/>
+  <text x="80" y="105" class="txt" font-weight="700">Current node</text>
+  <text x="80" y="135" class="small muted">Children subtree sizes: a₁, a₂, a₃, …, aₖ</text>
+
+  <!-- Children boxes -->
+  <g transform="translate(80,155)">
+    <rect x="0" y="0" width="150" height="60" rx="10" class="child"/>
+    <text x="15" y="25" class="mono">child 1</text>
+    <text x="15" y="48" class="mono muted">size = a₁</text>
+
+    <rect x="170" y="0" width="150" height="60" rx="10" class="child"/>
+    <text x="185" y="25" class="mono">child 2</text>
+    <text x="185" y="48" class="mono muted">size = a₂</text>
+
+    <rect x="340" y="0" width="150" height="60" rx="10" class="child"/>
+    <text x="355" y="25" class="mono">child 3</text>
+    <text x="355" y="48" class="mono muted">size = a₃</text>
+
+    <text x="520" y="38" class="txt muted" font-weight="700">…</text>
+
+    <rect x="610" y="0" width="150" height="60" rx="10" class="child"/>
+    <text x="625" y="25" class="mono">child j</text>
+    <text x="625" y="48" class="mono muted">size = aⱼ</text>
+
+    <text x="790" y="38" class="txt muted" font-weight="700">…</text>
+
+    <rect x="850" y="0" width="150" height="60" rx="10" class="child"/>
+    <text x="865" y="25" class="mono">child k</text>
+    <text x="865" y="48" class="mono muted">size = aₖ</text>
+  </g>
+
+  <!-- Prefix sums bar -->
+  <text x="60" y="250" class="txt" font-weight="700">Prefix sums</text>
+  <text x="190" y="250" class="small muted">p₀ = 0, p₁ = a₁, p₂ = a₁+a₂, …, pⱼ = Σₜ≤ⱼ aₜ</text>
+
+  <rect x="60" y="270" width="980" height="50" rx="10" class="box"/>
+
+  <!-- Segments -->
+  <g>
+    <!-- segment boundaries (visual only) -->
+    <line x1="210" y1="270" x2="210" y2="320" stroke="#e5e7eb" stroke-width="2"/>
+    <line x1="360" y1="270" x2="360" y2="320" stroke="#e5e7eb" stroke-width="2"/>
+    <line x1="510" y1="270" x2="510" y2="320" stroke="#e5e7eb" stroke-width="2"/>
+    <line x1="710" y1="270" x2="710" y2="320" stroke="#e5e7eb" stroke-width="2"/>
+    <line x1="860" y1="270" x2="860" y2="320" stroke="#e5e7eb" stroke-width="2"/>
+
+    <text x="70" y="300" class="mono muted">p₀</text>
+    <text x="195" y="300" class="mono muted">p₁</text>
+    <text x="345" y="300" class="mono muted">p₂</text>
+    <text x="495" y="300" class="mono muted">p₃</text>
+    <text x="685" y="300" class="mono muted">pⱼ</text>
+    <text x="835" y="300" class="mono muted">pₖ</text>
+  </g>
+
+  <!-- Index i marker -->
+  <line x1="650" y1="255" x2="650" y2="335" class="accentStroke" stroke-width="3"/>
+  <text x="662" y="260" class="txt accent" font-weight="700">i</text>
+
+  <!-- Rule text -->
+  <text x="60" y="370" class="txt">
+    Find smallest j such that pⱼ ≥ i  → go to child j, with child-local index i′ = i − pⱼ₋₁
+  </text>
+
+  <!-- Arrow from i to child j -->
+  <path d="M650,255 C650,210 700,210 735,200" fill="none" stroke="#2563eb" stroke-width="3" marker-end="url(#arrowBlue)"/>
+  <text x="745" y="205" class="small accent" font-weight="700">routes to child j</text>
+</svg>
