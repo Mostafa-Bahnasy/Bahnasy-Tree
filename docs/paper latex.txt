@@ -1,0 +1,580 @@
+\documentclass[11pt]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs}
+\usepackage{microtype}
+\usepackage[a4paper,margin=1in]{geometry}
+
+\DeclareMathOperator{\SPF}{SPF}
+
+% --- Theorem environments ---
+\newtheorem{definition}{Definition}
+\newtheorem{lemma}{Lemma}
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}{Proposition}
+\newtheorem{corollary}{Corollary}
+
+\title{Bahnasy Tree: A Dynamic Sequence with SPF-Guided Splitting, Local Overflow Repair, and Lazy Range Operations}
+\author{Mostafa Bahnasy}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We present the Bahnasy Tree, a dynamic multi-way tree representing a sequence and supporting
+index-based access, insertion, deletion, range queries, and lazy range updates.
+Each internal node stores the sizes of its child subtrees, enabling routing by lower-bounding prefix sums.
+To control fanout, the data structure uses a threshold parameter $T$ and splits nodes using a branching
+factor derived from the smallest prime factor (SPF) of the node size, with fallback to binary splitting.
+To repair local overflow at leaf level, we regroup leaves when the leaf-parent degree exceeds $cT$ for a fixed constant $c\ge 1$.
+A rebuild-after-$K$-splits policy is used to prevent long-term drift under adversarial edits.
+We prove correctness via invariants and provide complexity bounds in terms of the current height $H$,
+together with a typical post-rebuild specialization where $H \approx \log_T N$.
+We empirically evaluate the SumAdd instantiation (range add + range sum) against an implicit treap
+(fully dynamic workloads) and a lazy segment tree (fixed-length workloads).
+\end{abstract}
+
+\section{Introduction}
+Dynamic sequence problems require maintaining an ordered list of elements under a mixture of operations:
+queries and updates on ranges, point updates, and structural edits (insertions and deletions).
+Well-known solutions include implicit treaps for fully dynamic sequences and segment trees for fixed-length arrays.
+This paper studies a simple multi-way alternative: the \emph{Bahnasy Tree}.
+It routes by storing child subtree sizes and uses SPF-guided splitting to create bounded fanout,
+combined with local overflow repair and occasional rebuilding.
+
+\paragraph{Contributions.}
+\begin{itemize}
+  \item A multi-way dynamic sequence representation with routing by prefix sums of subtree sizes.
+  \item An SPF-guided branching heuristic for global construction and local overflow repair.
+  \item A generic aggregate/lazy framework (sum/min/xor/or/and and corresponding lazies).
+  \item Correctness arguments and complexity bounds in terms of current height $H$.
+  \item Benchmarks for SumAdd (range add + range sum) versus implicit treap and lazy segment tree.
+\end{itemize}
+
+\section{Related Work}
+\textbf{Implicit treaps} maintain sequence order using implicit keys and randomized priorities and support split/merge,
+making them a strong baseline for fully dynamic sequences with range aggregates and lazy updates.
+\textbf{Segment trees} provide efficient range query/update on fixed-length arrays but do not natively support insertion/deletion.
+\textbf{B-trees/B$^+$-trees} and \textbf{ropes} represent sequences with bounded fanout and are widely used in systems.
+Bahnasy Tree shares the multi-way partitioning idea, but uses SPF-guided branching and a lightweight local overflow repair
+based on regrouping leaves, plus a rebuild policy to mitigate adversarial drift.
+
+\section{Preliminaries}
+\subsection{Sequence ADT}
+We represent a sequence $A[1..N]$ (1-indexed) supporting:
+\begin{itemize}
+  \item $\textsc{PointSet}(i,x)$: set $A[i]\leftarrow x$.
+  \item $\textsc{RangeQuery}(l,r)$: query an aggregate on $A[l..r]$.
+  \item $\textsc{RangeApply}(l,r,\Delta)$: apply a lazy update to each element in $A[l..r]$.
+  \item $\textsc{InsertAt}(i,x)$: insert $x$ so it becomes the new element at position $i$
+  (shifting the old $i,i+1,\dots$ right).
+  \item $\textsc{EraseAt}(i)$: remove the element at position $i$ (shifting right part left).
+\end{itemize}
+
+\subsection{Policy interface (aggregate + lazy)}
+A policy specifies:
+(i) an aggregate set $(\mathcal{A},\oplus,e)$ (associative, identity $e$),
+(ii) a lazy set $(\mathcal{L},\circ,\mathsf{id})$ (associative, identity $\mathsf{id}$),
+and (iii) an apply function $\textsc{ApplyAgg}(\text{agg},\text{lazy},\ell)$ that updates a segment aggregate
+given its length $\ell$, compatible with $\oplus$.
+
+\begin{definition}[SumAdd policy (evaluated)]
+Elements are integers. Aggregate is segment sum:
+$(\mathcal{A},\oplus,e)=(\mathbb{Z},+ ,0)$.
+Lazy update is an integer $\Delta$ meaning ``add $\Delta$ to every element in the segment''.
+Applying to a segment of length $\ell$ is $\textsc{ApplyAgg}(s,\Delta,\ell)=s+\Delta\cdot \ell$.
+Lazy composition is addition and identity is $0$.
+\end{definition}
+
+\paragraph{Other supported policies.}
+The same interface supports alternative aggregates and lazies (e.g., range add + range min, xor/xor, or/or, and/and).
+Our empirical evaluation focuses on SumAdd.
+
+\section{Bahnasy Tree}
+\subsection{Node representation}
+A Bahnasy Tree is an ordered rooted tree. Each node $v$ stores:
+\begin{itemize}
+  \item $\mathsf{size}(v)$: number of leaves (sequence elements) in its subtree.
+  \item $\mathsf{agg}(v)$: aggregate of values in its subtree.
+  \item $\mathsf{lazy}(v)$: a pending lazy update for the entire subtree.
+  \item ordered children $(c_1,\dots,c_k)$.
+  \item prefix sizes $p_0=0$ and $p_j=\sum_{t=1}^j \mathsf{size}(c_t)$.
+\end{itemize}
+A leaf is a node with no children and $\mathsf{size}=1$.
+A \emph{leaf-level parent} is a node whose children are leaves.
+
+\subsection{Core invariants}
+\begin{definition}[Structural invariants]
+For every internal node $v$ with children $(c_1,\dots,c_k)$:
+\begin{enumerate}
+  \item \textbf{Order/contiguity.} Leaves under $v$ appear in the sequence order and children partition a contiguous range.
+  \item \textbf{Size.} $\mathsf{size}(v)=\sum_{j=1}^k \mathsf{size}(c_j)$; leaves have size $1$.
+  \item \textbf{Prefix.} $p_j=\sum_{t=1}^j \mathsf{size}(c_t)$.
+\end{enumerate}
+\end{definition}
+
+\begin{definition}[Aggregate/lazy invariant]
+$\mathsf{agg}(v)$ equals the aggregate of the leaf values in $v$'s subtree after applying
+all deferred updates along the path; $\mathsf{lazy}(v)$ encodes a deferred update to be applied to all leaves in the subtree.
+\end{definition}
+
+\subsection{Routing by prefix sums}
+To locate index $i \in [1,\mathsf{size}(v)]$ at node $v$, find the smallest $j$ with $p_j \ge i$,
+then recurse into $c_j$ with local index $i' = i-p_{j-1}$ (Figure~\ref{fig:routing}).
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.95\linewidth]{figures/prefix_routing.png}
+  \caption{Routing by lower-bounding prefix sums of child subtree sizes.}
+  \label{fig:routing}
+\end{figure}
+
+\section{SPF-guided splitting}
+\subsection{Branching factor}
+Let $\SPF(n)$ denote the smallest prime factor of $n$ (and $\SPF(1)=1$).
+
+\begin{definition}[Branching factor]
+Fix a threshold $T\ge 2$. For a node containing $n$ elements, define the branching factor $S(n)$ by:
+\begin{itemize}
+  \item if $\SPF(n)\le T$, then set $S(n)\leftarrow \SPF(n)$;
+  \item otherwise set $S(n)\leftarrow 2$.
+\end{itemize}
+In particular, if $n$ is prime and $n>T$, then $S(n)=2$.
+\end{definition}
+
+\subsection{Global construction}
+To build a tree for $n$ elements:
+\begin{itemize}
+  \item if $n \le T$, create $n$ leaves as children;
+  \item else set $S\leftarrow S(n)$ and partition $n$ into $S$ consecutive parts with sizes
+  $g=\lfloor n/S\rfloor$ repeated $S-1$ times and $g+r$ for the last part, where $r=n\bmod S$;
+  recurse for each child.
+\end{itemize}
+After rebuild, every internal node has degree at most $T$.
+
+\section{Local overflow repair at leaf level}
+\begin{definition}[Local split threshold]
+Let $c\ge 1$ be a fixed constant. A leaf-level parent $v$ with $d$ leaf-children is considered too wide when $d>cT$.
+When this happens, we perform a \emph{local split} by inserting one intermediate layer and regrouping the leaves.
+\end{definition}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.95\linewidth]{figures/local_split.png}
+  \caption{Local split at leaf level: regrouping leaves by inserting an intermediate layer.}
+  \label{fig:localsplit}
+\end{figure}
+
+\section{Algorithms (SumAdd pseudocode)}
+In pseudocode, we write nodes with fields: $\mathsf{size}$, $\mathsf{agg}$, $\mathsf{lazy}$, children array, and prefix array.
+We assume each node can mark its prefix array as ``dirty'' after edits and rebuild it on demand.
+
+\subsection{Lazy utilities: apply, push, pull}
+\begin{algorithm}[h]
+\caption{SumAdd utilities}
+\begin{algorithmic}[1]
+\Procedure{ApplyToNode}{$v,\Delta$}
+  \State $\mathsf{agg}(v) \gets \mathsf{agg}(v) + \Delta \cdot \mathsf{size}(v)$
+  \State $\mathsf{lazy}(v) \gets \mathsf{lazy}(v) + \Delta$
+\EndProcedure
+\Procedure{Push}{$v$}
+  \If{$v$ has no children} \Return \EndIf
+  \If{$\mathsf{lazy}(v)=0$} \Return \EndIf
+  \ForAll{children $c$ of $v$}
+    \State \Call{ApplyToNode}{$c,\mathsf{lazy}(v)$}
+  \EndFor
+  \State $\mathsf{lazy}(v)\gets 0$
+\EndProcedure
+\Procedure{Pull}{$v$}
+  \State $\mathsf{agg}(v)\gets 0$
+  \ForAll{children $c$ of $v$}
+    \State $\mathsf{agg}(v)\gets \mathsf{agg}(v) + \mathsf{agg}(c)$
+  \EndFor
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Prefix maintenance and child selection}
+\begin{algorithm}[h]
+\caption{Prefix rebuild and child selection}
+\begin{algorithmic}[1]
+\Procedure{RebuildPrefix}{$v$}
+  \State $p_0\gets 0$
+  \For{$j=1$ to degree$(v)$}
+    \State $p_j \gets p_{j-1} + \mathsf{size}(c_j)$
+  \EndFor
+\EndProcedure
+\Procedure{ChooseChildByIndex}{$v,i$} \Comment{$i$ is 1-indexed within $v$}
+  \State ensure prefix sizes are up to date (rebuild if dirty)
+  \State return smallest $j$ such that $p_j \ge i$ \Comment{lower\_bound on prefix sums}
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Range query and range apply}
+\begin{algorithm}[h]
+\caption{\textsc{RangeQuery}$(v,l,r)$ (SumAdd)}
+\begin{algorithmic}[1]
+\Procedure{RangeQuery}{$v,l,r$} \Comment{$[l,r]$ are 1-indexed within $v$}
+  \If{$v$ has no children} \Return $0$ \EndIf
+  \If{$r<1$ or $l>\mathsf{size}(v)$} \Return $0$ \EndIf
+  \State $l\gets \max(l,1)$; $r\gets \min(r,\mathsf{size}(v))$
+  \If{$l>r$} \Return $0$ \EndIf
+  \If{$l=1$ and $r=\mathsf{size}(v)$} \Return $\mathsf{agg}(v)$ \EndIf
+  \State \Call{Push}{$v$}
+  \If{$v$ is leaf-level parent}
+    \State $ans \gets 0$
+    \For{$t=l$ to $r$} $ans \gets ans + \mathsf{agg}(\text{leaf child }t)$ \EndFor
+    \State \Return $ans$
+  \EndIf
+  \State $j_L\gets$ \Call{ChooseChildByIndex}{$v,l$}; $j_R\gets$ \Call{ChooseChildByIndex}{$v,r$}
+  \State let prefix sizes be $(p_0,\dots,p_k)$
+  \If{$j_L=j_R$}
+    \State \Return \Call{RangeQuery}{$c_{j_L},\, l-p_{j_L},\, r-p_{j_L}$}
+  \EndIf
+  \State $ans \gets$ \Call{RangeQuery}{$c_{j_L},\, l-p_{j_L},\, \mathsf{size}(c_{j_L})$}
+  \For{$j=j_L+1$ to $j_R-1$}
+    \State $ans \gets ans + \mathsf{agg}(c_j)$
+  \EndFor
+  \State $ans \gets ans +$ \Call{RangeQuery}{$c_{j_R},\, 1,\, r-p_{j_R}$}
+  \State \Return $ans$
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[h]
+\caption{\textsc{RangeApply}$(v,l,r,\Delta)$ (SumAdd)}
+\begin{algorithmic}[1]
+\Procedure{RangeApply}{$v,l,r,\Delta$}
+  \If{$v$ has no children} \Return \EndIf
+  \If{$r<1$ or $l>\mathsf{size}(v)$} \Return \EndIf
+  \State $l\gets \max(l,1)$; $r\gets \min(r,\mathsf{size}(v))$
+  \If{$l>r$} \Return \EndIf
+  \If{$l=1$ and $r=\mathsf{size}(v)$}
+    \State \Call{ApplyToNode}{$v,\Delta$}; \Return
+  \EndIf
+  \State \Call{Push}{$v$}
+  \If{$v$ is leaf-level parent}
+    \For{$t=l$ to $r$} \State $\mathsf{agg}(\text{leaf child }t) \gets \mathsf{agg}(\text{leaf child }t)+\Delta$ \EndFor
+    \State \Call{Pull}{$v$}
+    \State \Return
+  \EndIf
+  \State $j_L\gets$ \Call{ChooseChildByIndex}{$v,l$}; $j_R\gets$ \Call{ChooseChildByIndex}{$v,r$}
+  \State let prefix sizes be $(p_0,\dots,p_k)$
+  \For{$j=j_L$ to $j_R$}
+    \State $L\gets \max(1,\, l-p_j)$
+    \State $R\gets \min(\mathsf{size}(c_j),\, r-p_j)$
+    \If{$L\le R$} \Call{RangeApply}{$c_j,L,R,\Delta$} \EndIf
+  \EndFor
+  \State \Call{Pull}{$v$}
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Point set}
+\begin{algorithm}[h]
+\caption{\textsc{PointSet}$(v,i,x)$ (SumAdd)}
+\begin{algorithmic}[1]
+\Procedure{PointSet}{$v,i,x$}
+  \If{$v$ has no children or $i<1$ or $i>\mathsf{size}(v)$} \Return \EndIf
+  \State \Call{Push}{$v$}
+  \If{$v$ is leaf-level parent}
+    \State $\mathsf{agg}(\text{leaf child }i) \gets x$
+    \State \Call{Pull}{$v$}
+    \State \Return
+  \EndIf
+  \State $j\gets$ \Call{ChooseChildByIndex}{$v,i$}; let prefix be $(p_0,\dots,p_k)$
+  \State \Call{PointSet}{$c_j,\, i-p_j,\, x$}
+  \State \Call{Pull}{$v$}
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Insert, erase, local split}
+\begin{algorithm}[h]
+\caption{\textsc{InsertAt}$(v,i,x)$ (returns whether a local split occurred)}
+\begin{algorithmic}[1]
+\Procedure{InsertAt}{$v,i,x$}
+  \State clamp $i$ into $[1,\mathsf{size}(v)+1]$
+  \State \Call{Push}{$v$}
+  \State $\mathsf{size}(v)\gets \mathsf{size}(v)+1$
+  \State $\mathsf{agg}(v)\gets \mathsf{agg}(v)+x$
+  \If{$v$ is leaf-level parent}
+    \State insert new leaf of value $x$ into ordered child list at position $i$
+    \State mark prefix of $v$ dirty
+    \If{degree$(v) > cT$}
+      \State \Call{LocalSplit}{$v$}
+      \State \Return \textbf{true}
+    \EndIf
+    \State \Return \textbf{false}
+  \EndIf
+  \State $j\gets$ \Call{ChooseChildByIndex}{$v,i$}; let prefix be $(p_0,\dots,p_k)$
+  \State $did \gets$ \Call{InsertAt}{$c_j,\, i-p_j,\, x$}
+  \State mark prefix dirty; \Call{Pull}{$v$}
+  \State \Return $did$
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[h]
+\caption{\textsc{EraseAt}$(v,i)$}
+\begin{algorithmic}[1]
+\Procedure{EraseAt}{$v,i$}
+  \If{$v$ has no children or $i<1$ or $i>\mathsf{size}(v)$} \Return \EndIf
+  \State \Call{Push}{$v$}
+  \If{$v$ is leaf-level parent}
+    \State remove leaf child at position $i$ (shift in vector)
+    \State $\mathsf{size}(v)\gets \mathsf{size}(v)-1$
+    \State \Call{Pull}{$v$}
+    \State mark prefix dirty; \Return
+  \EndIf
+  \State $j\gets$ \Call{ChooseChildByIndex}{$v,i$}; let prefix be $(p_0,\dots,p_k)$
+  \State \Call{EraseAt}{$c_j,\, i-p_j$}
+  \State if $c_j$ becomes empty, remove it from child list
+  \State $\mathsf{size}(v)\gets \mathsf{size}(v)-1$
+  \State mark prefix dirty; \Call{Pull}{$v$}
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[h]
+\caption{\textsc{LocalSplit}$(v)$ for a leaf-level parent}
+\begin{algorithmic}[1]
+\Procedure{LocalSplit}{$v$}
+  \State let $n \gets$ degree$(v)$
+  \State compute $s \gets S(n)$
+  \State $g\gets \lfloor n/s\rfloor$, $r\gets n\bmod s$
+  \State move old leaf children into an array $old$ in order; clear $v$'s children
+  \State $idx \gets 1$
+  \For{$t=1$ to $s$}
+    \State $cnt \gets g$; if $t=s$ then $cnt \gets g+r$
+    \State create new intermediate node $m$ with size $0$ and agg $0$
+    \For{$j=1$ to $cnt$}
+      \State move $old[idx]$ as a child of $m$; $idx \gets idx+1$
+      \State update $\mathsf{size}(m)$ and $\mathsf{agg}(m)$ from moved leaf
+    \EndFor
+    \State mark prefix of $m$ dirty
+    \State append $m$ as a child of $v$
+  \EndFor
+  \State recompute $\mathsf{size}(v)$ and $\mathsf{agg}(v)$; mark prefix dirty
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Rebuild-after-$K$-splits}
+We rebuild after a global split counter reaches $K$.
+
+\begin{algorithm}[h]
+\caption{\textsc{CollectLeaves} and \textsc{Rebuild}}
+\begin{algorithmic}[1]
+\Procedure{CollectLeaves}{$v,a$}
+  \If{$v$ has no children} \Return \EndIf
+  \State \Call{Push}{$v$}
+  \If{$v$ is leaf-level parent}
+    \ForAll{leaf children $u$ of $v$} append $\mathsf{agg}(u)$ to $a$ \EndFor
+  \Else
+    \ForAll{children $c$ of $v$} \Call{CollectLeaves}{$c,a$} \EndFor
+  \EndIf
+\EndProcedure
+\Procedure{Rebuild}{$root$}
+  \State $a \gets$ empty array
+  \State \Call{CollectLeaves}{$root,a$}
+  \State delete old tree
+  \State build new skeleton by global SPF splitting on $|a|$ with threshold $T$
+  \State fill leaf values from $a$ (in order) and recompute aggregates bottom-up
+  \State $\mathsf{splitCnt}\gets 0$
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\section{Correctness}
+\begin{lemma}[Prefix routing correctness]
+Let a node $v$ satisfy the prefix invariant. For any $i\in[1,\mathsf{size}(v)]$,
+the smallest $j$ with $p_j\ge i$ is unique and satisfies $p_{j-1}< i \le p_j$.
+Therefore routing to child $c_j$ with local index $i-p_{j-1}$ reaches the correct leaf.
+\end{lemma}
+\noindent\textbf{Proof sketch.}
+Prefix sums are nondecreasing and end at $p_k=\mathsf{size}(v)$, so such a $j$ exists.
+Uniqueness follows from monotonicity.
+The inequality $p_{j-1}<i\le p_j$ means the first $p_{j-1}$ leaves are in earlier children and the next leaves start in $c_j$,
+so $i-p_{j-1}$ is the correct local index.
+
+\begin{lemma}[Lazy propagation correctness (SumAdd)]
+\textsc{ApplyToNode} and \textsc{Push} preserve the aggregate/lazy invariant for SumAdd.
+\end{lemma}
+\noindent\textbf{Proof sketch.}
+Adding $\Delta$ to each element in a subtree of size $\ell$ increases the sum by $\Delta\ell$.
+\textsc{ApplyToNode} applies exactly this change to $\mathsf{agg}(v)$ and composes $\mathsf{lazy}(v)$.
+\textsc{Push} forwards the pending update to all children; the represented leaf values and hence subtree sums are unchanged.
+
+\begin{lemma}[Local split preserves order and content]
+Local split does not change the in-order sequence of leaves, hence it preserves the represented sequence.
+\end{lemma}
+\noindent\textbf{Proof sketch.}
+The procedure moves leaves into buckets in left-to-right order and only inserts an intermediate layer.
+No permutation occurs, so the in-order leaf sequence is identical before and after splitting.
+
+\begin{lemma}[Local split preserves invariants]
+After local split, the structural invariants and aggregate/lazy invariant hold.
+\end{lemma}
+\noindent\textbf{Proof sketch.}
+Each new intermediate node covers a consecutive block of the old leaves, so contiguity/order holds.
+Sizes add up by construction. Aggregates are recomputed from children (and lazies are unchanged except pushed before restructuring),
+so sums remain correct.
+
+\begin{theorem}[Operation correctness]
+Assuming invariants hold before an operation, \textsc{RangeQuery}, \textsc{RangeApply}, \textsc{PointSet},
+\textsc{InsertAt}, \textsc{EraseAt}, \textsc{LocalSplit}, and \textsc{Rebuild} preserve invariants and implement
+the intended sequence ADT semantics.
+\end{theorem}
+\noindent\textbf{Proof sketch.}
+Routing correctness follows from Lemma 1. Range procedures recurse only into children whose blocks intersect the query,
+and use exact aggregates on fully covered nodes, hence return/apply correct results given Lemma 2.
+Insert/erase update exactly one leaf position in the in-order sequence and adjust sizes/aggregates on the path.
+LocalSplit correctness is Lemmas 3--4. Rebuild flattens leaves in order and reconstructs a valid tree for the same array.
+
+\section{Complexity Analysis}
+Let $N$ be current sequence length and let $H$ be current height (number of internal levels on a root-to-leaf path).
+Let $d(v)$ denote the degree of node $v$.
+
+\subsection{Always-correct bounds (parameterized by current height)}
+\begin{proposition}[Routing cost]
+At a node $v$, child selection by lower-bounding prefix sums costs $O(\log d(v))$.
+Thus \textsc{Find}/routing costs $O\!\left(\sum_{\ell=1}^{H}\log d(v_\ell)\right)$ along the path.
+If visited degrees are bounded by $O(cT)$, routing is $O(H\log(cT))$.
+\end{proposition}
+
+\begin{proposition}[Insert/erase cost between rebuilds]
+Insert/erase performs one routing plus a leaf-level vector insertion/erasure and possibly a local split.
+If leaf-parent degrees are bounded by $O(cT)$, the vector shift and regrouping cost is $O(cT)$.
+Thus insert/erase are $O(H\log(cT) + cT)$ between rebuilds.
+\end{proposition}
+
+\begin{proposition}[Range query/apply cost (safe bound)]
+At each visited internal node, the algorithm may aggregate or update all fully covered children between two boundary children.
+Therefore the per-node overhead is $O(\log d(v) + d(v))$ in the worst case, yielding a safe bound
+$O(H(\log(cT)+cT))$ when visited degrees are $O(cT)$.
+\end{proposition}
+
+\subsection{Post-rebuild specialization (typical height)}
+After rebuild, global splitting yields fanout at most $T$, and in near-uniform shapes height is typically close to $H\approx \log_T N$.
+
+\begin{corollary}[Typical post-rebuild routing]
+Under $H \approx \log_T N$ and degrees bounded by $T$, routing is
+$O(\log_T N \cdot \log T)=O(\log N)$ by change of base.
+\end{corollary}
+
+\subsection{Rebuild cost and heuristic rebuild overhead}
+\begin{proposition}[Rebuild cost]
+Flattening leaves costs $O(N)$, and rebuilding creates $O(N)$ total nodes across levels (geometric shrink),
+so \textsc{Rebuild} costs $O(N)$ time and $O(N)$ memory.
+\end{proposition}
+
+\begin{proposition}[Heuristic rebuild overhead]
+Assume adversarial growth is dominated by repeated local splits in a hot region and that each additional split requires
+$\Omega(T)$ concentrated insertions (e.g., in repeated worst-case fallback to binary splitting).
+If rebuild is triggered after $K$ splits, then over $Q$ operations the number of rebuilds is $O(Q/(KT))$,
+giving total rebuild time $O(NQ/(KT))$. With $K=\Theta(T)$ this becomes $O(NQ/T^2)$.
+\end{proposition}
+
+\subsection{Choosing $T \approx N^{1/3}$ and the empirical best range}
+Two dominating terms in edit-heavy worst-style behavior are:
+(i) local leaf-level work $O(Q\cdot T)$ and (ii) rebuild overhead $O(NQ/T^2)$.
+Balancing these suggests choosing $T$ to minimize $T + N/T^2$, yielding $T=\Theta(N^{1/3})$ and overall heuristic time $\Theta(QN^{1/3})$,
+plus routing/range-query costs.
+
+Empirically, the best exponent depends on workload mix. In our tests, good values often fall in
+$T \in [N^{0.27},\,N^{0.39}]$, where smaller $T$ tends to help query-heavy workloads and larger $T$ tends to help insertion-heavy workloads.
+
+\section{Implementation Details}
+The benchmarked C++ implementation uses an SPF sieve up to a fixed bound and falls back to $S(n)=2$ above it.
+Threshold selection uses $T\approx \sqrt[3]{N}$ at (re)build time, with rounding to $2^k-1$ to reduce overhead.
+Rebuild triggers after $K=\max(50,2T)$ local splits.
+Benchmarks used $c=4$ (local split at degree $>4T$).
+
+\section{Experiments}
+\subsection{Setup}
+All benchmarks use $N=Q=2\cdot 10^5$.
+Experiments were run on a Windows machine with an 11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80\,GHz
+(4 physical cores, 8 logical processors).
+All programs were compiled using MinGW-w64 \texttt{g++} 15.1.0 with flags
+\texttt{-std=c++17 -O2 -pipe}.
+Each benchmark suite contains multiple input test files; we report the average wall-clock runtime over all files.
+
+\subsection{Baselines and fairness}
+We compare against:
+\begin{itemize}
+  \item \textbf{Implicit treap (dynamic):} supports range add, range sum, point set, insertion, and deletion.
+  \item \textbf{Lazy segment tree (fixed-length):} supports range add and range sum on a fixed-length array.
+\end{itemize}
+Because a segment tree does not natively support insertion/deletion without rebuilding, we evaluate it only on fixed-length suites.
+For the full ``all operations'' suite, we compare Bahnasy Tree only against the treap baseline.
+
+\subsection{Workloads and I/O format}
+We use the SumAdd operation set. For the fully dynamic suite, operations are:
+\begin{itemize}
+  \item \texttt{op=1}: point set $(i,x)$
+  \item \texttt{op=2}: range sum query $(l,r)$
+  \item \texttt{op=3}: range add $(l,r,\Delta)$
+  \item \texttt{op=4}: insert $(i,x)$
+  \item \texttt{op=5}: erase $(i)$
+\end{itemize}
+Fixed-length suites contain only the subset of operations relevant to the generator (e.g., range add + range sum).
+
+\subsection{Correctness checking}
+For each test file, Bahnasy outputs were compared against the corresponding baseline implementation. No mismatches
+were observed in the reported runs.
+
+\subsection{Results}
+\begin{table}[t]
+\centering
+\caption{Benchmark summary (SumAdd). Segment tree is evaluated only on fixed-length suites.}
+\label{tab:bench}
+\begin{tabular}{llllrr}
+\toprule
+Test suite & Bahnasy variant & Reference & Tests & Bahnasy avg & Ref avg \\
+\midrule
+All operations & dynamic Bahnasy (rebuild) & implicit treap & 105 & 0.202s & 0.193s \\
+Point update + query & Bahnasy (fixed-length) & segment tree & 18 & 0.303s & 0.218s \\
+Range update + query & Bahnasy (fixed-length) & segment tree & 12 & 0.274s & 0.236s \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+On fixed-length workloads, the segment tree benefits from tight $O(\log N)$ structure and small constants.
+Bahnasy Tree targets fully dynamic workloads where inserts and deletes are frequent; there, the main baseline is the implicit treap.
+
+\section{Limitations and Future Work}
+The structure can exhibit increased height under adversarial insertion patterns between rebuilds.
+Future work includes (i) more formal amortized guarantees under explicit rebuild triggers,
+(ii) alternative deterministic balancing rules, (iii) cache-aware node layouts, and (iv) deamortized rebuilding.
+
+\section{Conclusion}
+We presented Bahnasy Tree, a multi-way dynamic sequence structure using prefix-size routing, SPF-guided splitting,
+local overflow repair at degree $>cT$, and rebuild-after-$K$-splits.
+A heuristic choice $T\approx N^{1/3}$ balances local edit overhead and rebuild cost, and experiments suggest a practical exponent range of $0.27$--$0.39$.
+
+\begin{thebibliography}{9}
+\bibitem{treap}
+C. Seidel and M. Aragon.
+\newblock Randomized search trees.
+\newblock \emph{Algorithmica}, 16(4/5):464--497, 1996.
+
+\bibitem{btree}
+R. Bayer and E. McCreight.
+\newblock Organization and maintenance of large ordered indexes.
+\newblock \emph{Acta Informatica}, 1:173--189, 1972.
+
+\bibitem{rope}
+H.-J. Boehm, R. Atkinson, and M. Plass.
+\newblock Ropes: an alternative to strings.
+\newblock \emph{Software---Practice \& Experience}, 25(12):1315--1330, 1995.
+\end{thebibliography}
+
+\end{document}

@@ -1,0 +1,17 @@
+metric,value
+tests_total,105
+count_AC,105
+count_WA,0
+count_RE,0
+count_TLE,0
+count_NO_REF,0
+time_total_sec,22.413888
+time_avg_sec_all,0.213466
+time_min_sec_all,0.010197
+time_max_sec_all,1.551883
+time_avg_sec_ok_exit0,0.213466
+time_min_sec_ok_exit0,0.010197
+time_max_sec_ok_exit0,1.551883
+time_avg_sec_AC,0.213466
+time_min_sec_AC,0.010197
+time_max_sec_AC,1.551883
